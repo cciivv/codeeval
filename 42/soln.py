@@ -171,24 +171,26 @@ if (len(sys.argv) <= 1):
 else:
     with open(sys.argv[1]) as f:
         num_lists = [list(line.rstrip()) for line in f];
+    cache = {};
+    primes = [2,3,5,7];
+    gcm = 1;
+    for p in primes:
+        gcm *= p;
     for sequence in num_lists:
-        cache = {};
-        primes = [2,3,5,7];
-        gcm = 1;
-        for p in primes:
-            gcm *= p;
-        #start = time.time();
-        mtable = mt(sequence,cache, [gcm]);
+        start = time.time();
+        mtable = mt(sequence,cache,[gcm]);
+        stop_mt = time.time();
         uglies = defaultdict(lambda: 0);
+        uglies_num = 0;
         #print(mtable);
         for p in primes:
             for idx in range(0,gcm,p):
                 if mtable[0][idx] != 0:
                     if idx not in uglies:
-                        uglies[idx] += mtable[0][idx];
+                        uglies_num += mtable[0][idx];
+                        uglies[idx] = 1;
                         #print("\tuglies hit, ", idx, "with prime", p, "there are ", uglies[idx], "ways to get this value");
-        #stop = time.time();
-        #print("{} has {} uglies".format(''.join(sequence), sum(uglies.values())));
-        print(sum(uglies.values()));
-        #print(" took {} time".format(stop - start));
-        #print(uglies);
+        stop = time.time();
+        print(" took {} time for mod_table calculation".format(stop_mt - start));
+        print(" took {} time total".format(stop - start));
+        print(uglies_num);

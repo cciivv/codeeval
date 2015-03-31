@@ -177,7 +177,7 @@ else:
         gcm = 1;
         for p in primes:
             gcm *= p;
-        start = time.time();
+        #start = time.time();
         mtable = mt(sequence,cache, [gcm]);
         uglies = defaultdict(lambda: 0);
         #print(mtable);
@@ -187,7 +187,8 @@ else:
                     if idx not in uglies:
                         uglies[idx] += mtable[0][idx];
                         #print("\tuglies hit, ", idx, "with prime", p, "there are ", uglies[idx], "ways to get this value");
-        stop = time.time();
-        print("{} has {} uglies".format(''.join(sequence), sum(uglies.values())));
-        print(" took {} time".format(stop - start));
+        #stop = time.time();
+        #print("{} has {} uglies".format(''.join(sequence), sum(uglies.values())));
+        print(sum(uglies.values()));
+        #print(" took {} time".format(stop - start));
         #print(uglies);

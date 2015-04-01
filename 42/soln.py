@@ -11,7 +11,7 @@ def combo_mt(left, right, mod_len):
     """
     elements in left and right need to be combined to find which values they add up to
     """
-    mt = {};
+    mt = defaultdict(lambda:0);
     if len(left) != len(right):
         if len(left) != 0 and len(right) == 0:
             return left;
@@ -21,26 +21,26 @@ def combo_mt(left, right, mod_len):
         for r in right:
             ind = (l,r);
             ind_val = (left[l], right[r])
-            adding = l + r;
-            subing = l - r
+            adding = abs(l + r);
+            subing = abs(l - r)
             combo =  left[l] * right[r];
-            if adding < 0:
-                adding = -1 * adding;
-            if subing < 0:
-                subing = -1 * subing;
-            add_def_zero(mt, adding%mod_len, combo);
-            add_def_zero(mt, subing%mod_len, combo);
+            mt[adding%mod_len] += combo;
+            mt[subing%mod_len] += combo;
+            #add_def_zero(mt, adding%mod_len, combo);
+            #add_def_zero(mt, subing%mod_len, combo);
     return mt;
 
 def add_mt(left, right):
     """
     elements in each dict are distinct solutions (i.e. different pairings of the same sequence)
     """
-    mt = {};
+    mt = defaultdict(lambda: 0);
     for l in left:
-        add_def_zero(mt, l, left[l]);
+        mt[l] += left[l];
+        #add_def_zero(mt, l, left[l]);
     for r in right:
-        add_def_zero(mt, r, right[r]);
+        mt[r] += right[r];
+        #add_def_zero(mt, r, right[r]);
     return mt;
     
 def mt_val(n, cache, mod_val):

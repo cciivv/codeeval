@@ -1,17 +1,20 @@
 import sys;
 from collections import defaultdict;
-import time;
+
+cache = {};
+primes = [2,3,5,7];
+gcm = 210;
 
 def add_def_zero(table, key, value):
     if key not in table:
         table[key] = 0;
     table[key] += value;
         
-def combo_mt(left, right, mod_len):
+def combo_mt(left, right):
     """
     elements in left and right need to be combined to find which values they add up to
     """
-    mt = defaultdict(lambda:0);
+    mtable = {};
     if len(left) != len(right):
         if len(left) != 0 and len(right) == 0:
             return left;
@@ -19,47 +22,41 @@ def combo_mt(left, right, mod_len):
             return right;
     for l in left:
         for r in right:
-            ind = (l,r);
-            ind_val = (left[l], right[r])
-            adding = abs(l + r);
-            subing = abs(l - r)
             combo =  left[l] * right[r];
-            mt[adding%mod_len] += combo;
-            mt[subing%mod_len] += combo;
-            #add_def_zero(mt, adding%mod_len, combo);
-            #add_def_zero(mt, subing%mod_len, combo);
-    return mt;
+            #mt[adding%gcm] += combo;
+            #mt[subing%gcm] += combo;
+            add_def_zero(mtable, abs(l + r)%gcm, combo);
+            add_def_zero(mtable, abs(l - r)%gcm, combo);
+    return mtable;
 
 def add_mt(left, right):
     """
     elements in each dict are distinct solutions (i.e. different pairings of the same sequence)
     """
-    mt = defaultdict(lambda: 0);
+    mt = {};
     for l in left:
-        mt[l] += left[l];
-        #add_def_zero(mt, l, left[l]);
+        #mt[l] += left[l];
+        add_def_zero(mt, l, left[l]);
     for r in right:
-        mt[r] += right[r];
-        #add_def_zero(mt, r, right[r]);
+        #mt[r] += right[r];
+        add_def_zero(mt, r, right[r]);
     return mt;
     
-def mt_val(n, cache, mod_val):
-    if len(n) == 0:
-        return None;
+def mt_val(n):
+    global cache;
     num = int(n);
     if num not in cache:
-        temp_mt = {(num%mod_val): 1};
+        temp_mt = {(num%gcm): 1};
         cache[num] = temp_mt;
-    #else:
-        #print("\t\t\t\t\t\tcache HIT");
-    #print("val = ", cache[num]);
+        return temp_mt;
     return cache[num];
 
 def left(A):
     return A[:(len(A)//2)]
 
 def right(A):
-    return A[int((len(A) + 0.5)//2):len(A)]
+    l = len(A);
+    return A[int((l + 0.5)//2):l]
 
 def window_bounds(size, total_len, split):
     """
@@ -75,67 +72,68 @@ def window_bounds(size, total_len, split):
         windows.append((front(i), back(i)));
     return windows;
     
-def mt_seq(seq, cache, mods_gcm):
-    if ''.join(seq) not in cache:
-        if len(seq) == 0:
+def mt_seq(seq):
+    global cache;
+    joined = ''.join(seq);
+    if joined not in cache:
+        seq_len = len(seq);
+        if seq_len == 0:
             return {};
-        if len(seq) == 1:
-            return mt_val(seq[0], cache, mods_gcm);
+        if seq_len == 1:
+            return mt_val(seq[0]);
         lft = left(seq);
+        lft_len = len(lft);
         #combination of the left and right halves possible values
-        combo_table = combo_mt(mt(lft, cache, mods_gcm), mt(right(seq), cache, mods_gcm),mods_gcm);
         #add in mod value for the whole sequence as a value
-        coverall_table = mt(''.join(seq), cache, mods_gcm);
-        combo_table = add_mt(combo_table, coverall_table);
+        combo_table = add_mt( combo_mt(mt(lft),mt(right(seq))), mt(joined));
         #then add in all the combinations when the two halves are combined
-        for window_size in range(2,len(seq)):
-            windows = window_bounds(window_size, len(seq), len(lft));
+        for window_size in range(2,seq_len):
+            windows = window_bounds(window_size, seq_len, lft_len);
             for window in windows:
-                before_table = mt(seq[:window[0]],cache, mods_gcm);
-                during_table = mt(''.join(seq[window[0]:window[1]+1]), cache, mods_gcm);
-                temp_combo = combo_mt(before_table, during_table, mods_gcm);
-                after_table = mt(seq[window[1]+1:], cache, mods_gcm); 
-                temp_table = combo_mt(temp_combo, after_table, mods_gcm);
-                combo_table = add_mt(combo_table, temp_table);
-        cache[''.join(seq)] = combo_table;
-    return cache[''.join(seq)];
+                combo_table = add_mt( \
+                                combo_table, \
+                                combo_mt( \
+                                    combo_mt( \
+                                        mt(seq[:window[0]]), \
+                                        mt(''.join(seq[window[0]:window[1]+1]))
+                                        ), \
+                                    mt(seq[window[1]+1:])
+                                    )
+                                );
+        cache[joined] = combo_table;
+        return combo_table;
+    return cache[joined];
 
-def mt(seq, cache, mods_gcm):
+
+cases = {list: lambda t: mt_seq(t), \
+        str: lambda t: mt_val(t)};
+    
+def mt(seq):
     """ 
-    seq: a list of individual digits 
-    cache: dict of cached modtables for digit span (represented as a join of digits)
-    mods: numbers to check mods of
+    seq: a list of individual digits
     """
-    cases = {list: lambda t,c,p: mt_seq(t,c,p), \
-            str: lambda t,c,p: mt_val(t,c,p)};
-    #check for empty sequence or empty string?
-    try:
-        mt = cases[type(seq)](seq,cache,mods_gcm);
-        return mt;
-    except KeyError:
-        print("KeyError");
-        return None;
-
+    return cases[type(seq)](seq);
+    
+def count_uglies(mt, primes):
+    uglies = defaultdict(lambda: 0);
+    uglies_num = 0;
+    for p in primes:
+        for mp in range(0,gcm,p):
+            if mp in mtable:
+                #have to make sure not to double count...
+                if mp not in uglies:
+                    uglies[mp] += mtable[mp];
+                    uglies_num += mtable[mp];
+    return uglies_num;
 num_strip = []
 if (len(sys.argv) <= 1):
     print("bad input");
 else:
     with open(sys.argv[1]) as f:
         num_lists = [list(line.rstrip()) for line in f];
-    cache = {};
-    primes = [2,3,5,7];
-    gcm = 1;
-    for p in primes:
-        gcm *= p;
+    uglies = [];
     for sequence in num_lists:
-        mtable = mt(sequence,cache,gcm);
-        uglies = defaultdict(lambda: 0);
-        uglies_num = 0;
-        for p in primes:
-            for mp in range(0,gcm,p):
-                if mp in mtable:
-                    if mp not in uglies:
-                        uglies[mp] += mtable[mp];
-                        uglies_num += mtable[mp];
-        stop = time.time();
-        print(uglies_num);
+        mtable = mt(sequence);
+        uglies.append(count_uglies(mtable, primes));
+    print("\n".join(str(x) for x in uglies));
+    

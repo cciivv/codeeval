@@ -1,5 +1,4 @@
 import sys;
-from collections import defaultdict;
 
 cache = {};
 primes = [2,3,5,7];
@@ -9,7 +8,7 @@ def add_def_zero(table, key, value):
     if key not in table:
         table[key] = 0;
     table[key] += value;
-        
+    
 def combo_mt(left, right):
     """
     elements in left and right need to be combined to find which values they add up to
@@ -71,7 +70,7 @@ def window_bounds(size, total_len, split):
     for i in range(num_win):
         windows.append((front(i), back(i)));
     return windows;
-    
+
 def mt_seq(seq):
     global cache;
     joined = ''.join(seq);
@@ -114,26 +113,29 @@ def mt(seq):
     """
     return cases[type(seq)](seq);
     
-def count_uglies(mt, primes):
-    uglies = defaultdict(lambda: 0);
+def count_uglies(mtable, primes):
+    uglies = {}
     uglies_num = 0;
     for p in primes:
         for mp in range(0,gcm,p):
             if mp in mtable:
                 #have to make sure not to double count...
                 if mp not in uglies:
-                    uglies[mp] += mtable[mp];
+                    add_def_zero(uglies, mp, mtable[mp]);
                     uglies_num += mtable[mp];
     return uglies_num;
-num_strip = []
-if (len(sys.argv) <= 1):
-    print("bad input");
-else:
-    with open(sys.argv[1]) as f:
-        num_lists = [list(line.rstrip()) for line in f];
-    uglies = [];
-    for sequence in num_lists:
-        mtable = mt(sequence);
-        uglies.append(count_uglies(mtable, primes));
-    print("\n".join(str(x) for x in uglies));
-    
+
+def find_uglies():
+    if (len(sys.argv) <= 1):
+        print("bad input");
+    else:
+        with open(sys.argv[1]) as f:
+            num_lists = [list(line.rstrip()) for line in f];
+        uglies = [];
+        for sequence in num_lists:
+            mtable = mt(sequence);
+            uglies.append(count_uglies(mtable, primes));
+        print("\n".join(str(x) for x in uglies));
+
+if __name__ == '__main__':
+    find_uglies();

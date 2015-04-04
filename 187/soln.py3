@@ -1,5 +1,5 @@
 import sys;
-import threading;
+from multiprocessing import Pool, Lock;
 from collections import defaultdict;
 
 #since input is always less than 18, max sum = 35
@@ -31,7 +31,6 @@ class BeadNode(object):
             self.chain[self.value] = self.depth;
         else:
             self.chain = {value: self.depth};
-        self.connected = {};
         #print("new node ==", self);
 
     
@@ -47,7 +46,7 @@ class BeadNode(object):
         
     def __hash__(self):
         parent_value = self.parent.value if self.parent else 0;
-        return hash((self.value,self.depth,parent_value));
+        return hash((self.value,)+tuple(self.chain.keys()));
 
 
 class BeadTree(object):
@@ -57,34 +56,45 @@ class BeadTree(object):
         self.head = BeadNode(root_value, None);
         self.depth_members = defaultdict(lambda: []);
         self.depth_members[1] = [self.head];
-        self.complete_lock = threading.Lock();
+        self.complete_lock = Lock();
         self.completed = 0;
-        self.work_lock = threading.Lock();
+        self.work_lock = Lock();
         self.workqueue = [self.head];
         
 
-    def grow_bud(self, bud):
+    def grow_bud(self, bud, results):
         if bud.depth == self.goal_depth and bud in CACHE[self.head.value]:
                 #print("-=-=-=-=-Connected to ", bead);
                 self.complete_lock.acquire();
-                #print("-=-=-=-=-incr-=-=-=-=-");
+                print("-=-=-=-=-incr-=-=-=-=-");
                 self.completed += 1;
                 self.complete_lock.release();
         else:
-            self.work_lock.acquire();
-            self.workqueue.extend(bud.next([x for x in range(1,self.goal_depth+1)]));
-            self.work_lock.release();
+            return bud.next([x for x in range(1,self.goal_depth+1)]);
         
+    def put_work(buds):
+        print(buds);
+        self.work_lock.acquire();
+        self.workqueue.extend(buds);
+        self.work_lock.release();
             
 
     def grow(self):
         threads = [];
         results = [];
         
-        print(self.workqueue);
-        while self.workqueue:
-            bud = self.workqueue.pop();
-            self.workqueue.extend(self.grow_bud(bud));
+        with Pool(processes=4) as pool:
+            self.work_lock.acquire();
+            while self.workqueue:
+                work = [self.workqueue.pop() for _ in range(len(self.workqueue))]
+                self.work_lock.release();
+
+                pool.map_async(self.grow_bud, work, callback=self.put_work).wait();
+                
+                self.work_lock.acquire();
+            
+            self.work_lock.release();
+
     def get_num_finished(self):
         return self.completed;
 

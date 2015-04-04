@@ -64,6 +64,7 @@ def prime_gap_helper(max_value, values, seen, cache):
                 prime_gap_helper(max_value, values, seen, cache);
                 seen.pop(number);
                 seen['last'] = seen['sequence'].pop();
+                seen['length'] -= 1;
                 seen['build'].pop();
     return seen['done'];
 

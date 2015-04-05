@@ -33,43 +33,63 @@ def prime_compliment_cache(cache):
 
 def get_shared_prime_compliments(a, b, cache, range):
     input = (a,b) if b>a else (b,a);
+    #print("testing prime compliments of ", input);
     if (input,range) not in cache:
-           cache[(input,range)] = [x for x in cache[input[0]] if x <= range and x in cache[input[1]]];
+        cache[(input,range)] = [x for x in cache[input[0]] if x <= range and x in cache[input[1]]];
+    #print("{} and {} (when max is {}), share compliments = {}".format(a,b,range,cache[(input,range)]));
     return cache[(input,range)];
 
 
 def extend_prime_gap(last_value, value, max_value, seen, cache):
     last = get_shared_prime_compliments(last_value, value, cache, max_value);
+    #print("last value = {}, test_value = {}, max_v = {}, shared compliments = {}".format(last_value,value,max_value,last));
+    #print("\t", seen['sequence']);
     if last:
         seen['build'].append(last);
         seen['length'] += 1;
         seen['last'] = value;
         seen['sequence'].append(value);
-        seen[value] = 1;
-        
+        seen[value] = 1;    
         return True;
     else:
         return False;
 
-
+def contract_prime_gap(value, seen):
+    seen.pop(value);
+    seen['last'] = seen['sequence'].pop();
+    seen['length'] -= 1;
+    seen['build'].pop();
+        
 def prime_gap_helper(max_value, values, seen, cache):
     seq_len = seen['length'];
     last_value = seen['last'];
-    if seq_len == max_value/2 - 1:
-        if extend_prime_gap(last_value, max_value, max_value, seen, cache):
-            seen['done'].append(seen['build']);
-    else:
-        for number in [x for x in values if x not in seen]:
-            if extend_prime_gap(last_value, number, max_value, seen, cache):
-                prime_gap_helper(max_value, values, seen, cache);
-                seen.pop(number);
-                seen['last'] = seen['sequence'].pop();
-                seen['length'] -= 1;
-                seen['build'].pop();
+    #print("gap helper, len = ", seq_len, "last value = ", last_value, " values = ", values, "max_v =", max_value);
+    if seq_len == (max_value/2):
+        test_value = max_value;
+        #print("test adding last element");
+        if extend_prime_gap(last_value, test_value, max_value, seen, cache):
+            seen['done'].append(seen['build'][:]);
+            #print("found one ",seen['sequence'], seen['build']);
+            contract_prime_gap(test_value, seen);
+    for number in [x for x in values if x not in seen]:
+        if extend_prime_gap(last_value, number, max_value, seen, cache):
+            #print("adding ", number, "to sequence");
+            if seq_len == (max_value/2)-1:
+                last_value = seen['last'];
+                test_value = max_value;
+                #print("test adding last element");
+                if extend_prime_gap(last_value, test_value, max_value, seen, cache):
+                    seen['done'].append(seen['build']);
+                    #print("found one ",seen['sequence'], seen['build']);
+                    contract_prime_gap(test_value, seen);
+            prime_gap_helper(max_value, values, seen, cache);
+            contract_prime_gap(number, seen);
+            #print("removing ", number, "from sequence");
     return seen['done'];
 
 
 def get_prime_gapped_permutations(values, cache):
+    
     tail = values.pop();
     seen = {tail: 1, 'last': tail, 'length':1, 'sequence':[tail], 'build': [], 'done': []};
     done = [];
@@ -95,8 +115,9 @@ def remove_singletons(gaps):
 
 
 def num_ways(gaps, values_seen):
+    #print("gaps = ", gaps, "values seen=", values_seen);
     if len(gaps) < 1:
-        return -1;
+        return 0;
     if len(gaps) == 1:
         return len([x for x in gaps[0] if x not in values_seen]);
     ways = 0;
@@ -106,10 +127,14 @@ def num_ways(gaps, values_seen):
             values_seen.pop(num);
     return ways;
 
+def unique(gaps):
+    return not gaps or max([len(gap) for gap in gaps]) == 1
+
 def num_odd_fills(gaps):
         #know there is going to be at least one since get_prime_permutations
         #only returns possible even sequences
-        remove_singletons(gaps);
+        if not unique(gaps):
+            remove_singletons(gaps);
         return num_ways(gaps, {});
     
 def num_patterns(length, cache):
@@ -120,9 +145,11 @@ def num_patterns(length, cache):
     #build the cache if it hasn't been already
     prime_compliment_cache(cache);
     
-    #print("===================START=", length);
+    print("===================START=", length);
     evens = [x for x in range(1,length+1) if not x%2];
-    return sum( map( num_odd_fills, get_prime_gapped_permutations(evens, cache)));
+    gaps = get_prime_gapped_permutations(evens, cache);
+    #print("computed gaps = ", gaps);
+    return sum( map( num_odd_fills, gaps));
 
 def parse_input():
     if len(sys.argv) <= 1:

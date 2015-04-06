@@ -116,6 +116,14 @@ def popualte_histogram(gaps):
             histogram[value] += 1;
     return histogram;
 
+def remove_targets_from_gaps(targets, gaps):
+    removed_completely = 0;
+    for idx, gap in enumerate(gaps):
+        gaps[idx] = [x for x in gap if x not in targets];
+        if not gaps[idx]:
+            removed_completely += 1;
+    return removed_completely;
+        
 
 def remove_singletons(gaps):
     targets = defaultdict(lambda:1);
@@ -123,10 +131,10 @@ def remove_singletons(gaps):
         if len(gap) == 1:
             if gap[0] in targets:
                 return (False, {});
-            targets[gap[0]];
+            else:
+                targets[gap[0]];
     
-    for idx, gap in enumerate(gaps):
-        gaps[idx] = [x for x in gap if x not in targets];
+    remove_targets_from_gaps(targets, gaps);
     return (True, targets);
 
 def num_ways(gaps, values_seen):
@@ -155,10 +163,11 @@ def no_path_exists(gaps, all_removed, max_value):
 
     global num_no_path;
     global num_multi;
+    special_sets = [];
     needed = (max_value+1)//2 - len(all_removed);
     len_dict = defaultdict(lambda: defaultdict(lambda: 0));
     if not needed:
-        return False;
+        return (False, special_sets);
     for gap in gaps:
         tgap = tuple(gap);
         len_dict[len(gap)][tgap] += 1;
@@ -169,16 +178,19 @@ def no_path_exists(gaps, all_removed, max_value):
                     needed -= 1;
     if needed:
         num_no_path += 1;
-        return True;
+        return (True, special_sets);
 
     for length in len_dict:
         for set in len_dict[length]:
+            if len_dict[length][set] == length:
+                #print("found special set = ", set);
+                special_sets.append(set);
             if len_dict[length][set] > length:
                 #print(len_dict[length]);
                 num_multi += 1;
-                return True;
+                return (True, special_sets);
     
-    return False;
+    return (False, special_sets);
     
 num_double_single = 0;
 num_no_path = 0;
@@ -196,24 +208,60 @@ def num_odd_fills(gaps, max_value):
     
     
     gaps = list(filter(bool,gaps));
-    if no_path_exists(gaps, all_removed, max_value):
+    (no_path, special) = no_path_exists(gaps, all_removed, max_value);
+    if no_path:
         if not no_double_singletons:
             num_double_single += 1;
-        return 0;
+        return (0, (True, "np"));
     
+    multiplier = 1;
+    multi_list = [ 0, 1, 2, 6, 24];
+    if special and True:
+        all_targets = defaultdict(lambda: 0);
+        special_gaps = gaps[:];
+        target_num = 0;
+        targets = defaultdict(lambda: 0);
+        for special_set in special:
+            #print("before special cull", gaps);
+            multiplier *= multi_list[len(special_set)];
+            target_num += len(special_set);
+            for i in special_set:
+                targets[i];
+                all_targets[i] += 1;
+            #print(special);
+        pre_cull = gaps[:];
+        completely_removed = remove_targets_from_gaps(targets, gaps);
+        for target in all_targets:
+            if all_targets[target] > 1:
+                #print("double remove", all_targets, special);
+                return(0, (True, "mzg"));
+        if completely_removed != target_num:
+            #print("culled result", targets, "\n", completely_removed, target_num, pre_cull, gaps);
+            return (0, (True, "cull"));
+        all_removed.update(targets);
+            #print("after special cull", gaps);
+        gaps = list(filter(bool,gaps));
     #print("then", gaps, "no_double_singletons =", no_double_singletons);
     
     if no_double_singletons:
         if len(gaps) == 0:
-            return 1;
+            return (1, (True, "zg"));
         gaps.sort(key=len);
         result = num_ways(gaps, {});
         #if not result:
         #    print("zero gap = ",gaps, "\n");
-        return result;
+        if special:
+            #special_result = num_ways(special_gaps, {});
+            #if special_result*multiplier != result:
+            #    print("bad multi/result", special_result, multiplier, "\n\t", gaps,"\n\t",special_gaps);
+            #div = result/multiplier;
+            #if div%2 and div != 1:
+            #    print("odd ",result, multiplier, "\t",gaps);
+            return (multiplier*result, (True, multiplier));
+        return (result, False);
     else:
         num_double_single += 1; 
-        return 0;
+        return (0, (True, "ds"));
     
 def num_patterns(length, cache):
     #odd numbers can't make proper value since there will always be an even number sum
@@ -237,8 +285,9 @@ def num_patterns(length, cache):
     max_per_gap = defaultdict(lambda: 0);
     result = 0;
     for gap in gaps:
-        temp = num_odd_fills(gap,length);
-        max_per_gap[temp]+=1;
+        (temp, shortcut_taken) = num_odd_fills(gap,length);
+        if shortcut_taken or not temp:
+            max_per_gap[(temp,shortcut_taken)]+=1;
         result += temp;
     #result = sum( map( num_odd_fills, gaps));
     print("time = ", (time.time() - t));

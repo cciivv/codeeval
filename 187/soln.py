@@ -37,7 +37,7 @@ def get_shared_prime_compliments(a, b, cache, range):
     if (input,range) not in cache:
         comp = [x for x in cache[input[0]] if x <= range and x in cache[input[1]]];
         comp.sort();
-        cache[(input,range)] = tuple(comp);
+        cache[(input,range)] = comp;
     #print("{} and {} (when max is {}), share compliments = {}".format(a,b,range,cache[(input,range)]));
     return cache[(input,range)];
 
@@ -116,27 +116,21 @@ def popualte_histogram(gaps):
             histogram[value] += 1;
     return histogram;
 
-def remove_targets_from_gaps(targets, gaps):
+
+def remove_targets_from_gaps(targets, gaps, pop_idx):
     removed_completely = 0;
+    while pop_idx:
+        idx = pop_idx.pop();
+        gaps.pop(idx);
+        removed_completely += 1;
+    
     for idx, gap in enumerate(gaps):
         gaps[idx] = [x for x in gap if x not in targets];
         if not gaps[idx]:
             removed_completely += 1;
     return removed_completely;
-        
 
-def remove_singletons(gaps):
-    targets = defaultdict(lambda:1);
-    for gap in gaps:
-        if len(gap) == 1:
-            if gap[0] in targets:
-                return (False, {});
-            else:
-                targets[gap[0]];
     
-    remove_targets_from_gaps(targets, gaps);
-    return (True, targets);
-
 def num_ways(gaps, values_seen):
     #print("gaps = ", gaps, "values seen=", values_seen, "len", len(gaps));
     if len(gaps) < 1:
@@ -150,119 +144,123 @@ def num_ways(gaps, values_seen):
             values_seen.pop(num);
     return ways;
 
-def uniques_exist(gaps):
-    if not gaps:
-        return False;
-    for x in gaps:
-        if len(x) == 1:
-            return True;
-    #return len(min(gaps, key=len)) == 1
-    return False;
 
-def no_path_exists(gaps, all_removed, max_value):
-
-    global num_no_path;
-    global num_multi;
-    special_sets = [];
-    needed = (max_value+1)//2 - len(all_removed);
-    len_dict = defaultdict(lambda: defaultdict(lambda: 0));
-    if not needed:
-        return (False, special_sets);
-    for gap in gaps:
-        tgap = tuple(gap);
-        len_dict[len(gap)][tgap] += 1;
-        if needed:
-            for n in gap:
-                if n not in all_removed:
-                    all_removed[n] = 1;
-                    needed -= 1;
-    if needed:
-        num_no_path += 1;
-        return (True, special_sets);
-
-    for length in len_dict:
-        for set in len_dict[length]:
-            if len_dict[length][set] == length:
-                #print("found special set = ", set);
-                special_sets.append(set);
-            if len_dict[length][set] > length:
-                #print(len_dict[length]);
-                num_multi += 1;
-                return (True, special_sets);
-    
-    return (False, special_sets);
-    
 num_double_single = 0;
 num_no_path = 0;
 num_multi = 0;
-def num_odd_fills(gaps, max_value):
-    global num_double_single;
-    idx = 0;
-    #print(gaps);
-    no_double_singletons = True;
-    all_removed = {};
-    while uniques_exist(gaps) and no_double_singletons:
-        #print("\t",gaps);
-        no_double_singletons, removed = remove_singletons(gaps);
-        all_removed.update(removed);
-    
-    
-    gaps = list(filter(bool,gaps));
-    (no_path, special) = no_path_exists(gaps, all_removed, max_value);
-    if no_path:
-        if not no_double_singletons:
-            num_double_single += 1;
-        return (0, (True, "np"));
-    
+
+
+def scan_gaps(gaps, max_value, prev_removed):
+    needed = (max_value+1)//2 - len(prev_removed);
+    bad_reasons = False;
+    targets = defaultdict(lambda: 0);
+    len_dict = defaultdict(lambda: defaultdict(lambda: [0,[]]));
     multiplier = 1;
     multi_list = [ 0, 1, 2, 6, 24];
-    if special and True:
-        all_targets = defaultdict(lambda: 0);
-        special_gaps = gaps[:];
-        target_num = 0;
-        targets = defaultdict(lambda: 0);
-        for special_set in special:
-            #print("before special cull", gaps);
-            multiplier *= multi_list[len(special_set)];
-            target_num += len(special_set);
-            for i in special_set:
-                targets[i];
-                all_targets[i] += 1;
-            #print(special);
-        pre_cull = gaps[:];
-        completely_removed = remove_targets_from_gaps(targets, gaps);
-        for target in all_targets:
-            if all_targets[target] > 1:
-                #print("double remove", all_targets, special);
-                return(0, (True, "mzg"));
-        if completely_removed != target_num:
-            #print("culled result", targets, "\n", completely_removed, target_num, pre_cull, gaps);
-            return (0, (True, "cull"));
-        all_removed.update(targets);
-            #print("after special cull", gaps);
-        gaps = list(filter(bool,gaps));
-    #print("then", gaps, "no_double_singletons =", no_double_singletons);
+    expected_removed_singletons = 0;
+    expected_removed_sets = 0;
+    pop_idx = [];
+    marked = dict(prev_removed);
+    for idx, gap in enumerate(gaps):
+        if not bad_reasons:
+            tgap = tuple(gap);
+            len_gap = len(gap);
+            len_dict[len_gap][tgap][0] += 1;
+            len_dict[len_gap][tgap][1].append(idx);
+            if len_gap == 1:
+                pop_idx.append(idx);
+                expected_removed_singletons += 1;
+                if gap[0] in targets:
+                    bad_reasons = True;
+                    return (bad_reasons, targets, expected_removed_singletons, multiplier, pop_idx, False);
+                    #bad_reasons.append("multiple singletons");
+                    #return (False, {});
+                else:
+                    targets[gap[0]] += 1;
+            if needed:
+                for n in gap:
+                    if n not in marked:
+                        marked[n] = 1;
+                        needed -= 1;
+        else:
+            return (bad_reasons, targets, expected_removed_singletons, multiplier, pop_idx, False);
+    if needed:
+        #bad_reasons.append("not all numbers accounted for");
+        bad_reasons = True;
+        return (bad_reasons, {}, 0, 0, [], False);
+
+    if expected_removed_singletons:
+        return (bad_reasons, targets, expected_removed_singletons, multiplier, pop_idx, True);
+        
+    for length in len_dict:
+        for set in len_dict[length]:
+            if len_dict[length][set][0] > length:
+                #bad_reasons.append("overly repeated set of gaps");
+                bad_reasons = True;
+                return (bad_reasons, targets, 0, 0, pop_idx, False);
+            if len_dict[length][set][0] == length:
+                pop_idx.extend(len_dict[length][set][1]);
+                #print("found special set = ", set);
+                expected_removed_sets += length;
+                multiplier *= multi_list[len(set)];
+                for i in set:
+                    targets[i] += 1;
+    pop_idx.sort();
+    for num in targets:
+        if targets[num] > 1:
+            bad_reasons = True;
+            #bad_reasons.append("number occurs in multiple repeated sets");
+        
+    return (bad_reasons, targets, expected_removed_sets, multiplier, pop_idx, False);
+                
+def filter_gaps(gaps, max_value):
+    '''return if the gaps were found to be bad, and potential multiplier, removed numbers'''
     
-    if no_double_singletons:
-        if len(gaps) == 0:
-            return (1, (True, "zg"));
+    bad_reasons = False;
+    need_check = True;
+    multiplier = 1;
+    prev_removed = defaultdict(lambda:1);
+    scan = 0;
+    while need_check and not bad_reasons and scan < 1:
+        need_check = False;
+        (bad_reasons, targets, expected_removed_gaps, multi, pop_idx, singleton_run) = scan_gaps(gaps,max_value, prev_removed);
+        #if singleton_run:
+        #    scan+=1;
+        scan+=1;
+        
+        multiplier *= multi;
+        if targets and not bad_reasons:
+            need_check = True;
+            #prev_gaps = gaps[:];
+            removed_gaps = remove_targets_from_gaps(targets, gaps, pop_idx);
+            prev_removed.update(targets);
+            if removed_gaps > expected_removed_gaps:
+                #print(expected_removed_gaps, "\n\t",targets, "\n\t", prev_gaps, "\n\t",gaps);
+                bad_reasons = True;
+                #bad_reasons.append("removed more gaps than expected");
+            gaps = list(filter(bool,gaps));
+            if len(gaps) == 0:
+                need_check = False;
+    if not bad_reasons:
         gaps.sort(key=len);
-        result = num_ways(gaps, {});
-        #if not result:
-        #    print("zero gap = ",gaps, "\n");
-        if special:
-            #special_result = num_ways(special_gaps, {});
-            #if special_result*multiplier != result:
-            #    print("bad multi/result", special_result, multiplier, "\n\t", gaps,"\n\t",special_gaps);
-            #div = result/multiplier;
-            #if div%2 and div != 1:
-            #    print("odd ",result, multiplier, "\t",gaps);
-            return (multiplier*result, (True, multiplier));
-        return (result, False);
-    else:
-        num_double_single += 1; 
-        return (0, (True, "ds"));
     
+    return (gaps, bad_reasons, multiplier); 
+    
+    
+def num_odd_fills(gaps, max_value):
+    pre_gaps = gaps[:]
+    gaps, bad_reasons, multiplier = filter_gaps(gaps, max_value);
+    if bad_reasons:
+        #print("bad", bad_reasons);
+        return (0);#, (True, bad_reasons));
+    if len(gaps) == 0:
+        return (multiplier);#, (True, "zero_gap/multiplier"));
+    result = num_ways(gaps, {});
+    #print("num_ways", result*multiplier, " = ", result, "*", multiplier);
+    #if not result or not multiplier:
+    #   print(pre_gaps,"\n", gaps,"\n")
+    return (result*multiplier);#, False);
+
 def num_patterns(length, cache):
     #odd numbers can't make proper value since there will always be an even number sum
     
@@ -278,23 +276,19 @@ def num_patterns(length, cache):
     evens = [x for x in range(1,length+1) if not x%2];
     t = time.time();
     gaps = get_prime_gapped_permutations(evens, cache);
-    print(len(gaps));
-    num_double_single = 0;
-    num_no_path = 0;
-    num_multi = 0;
-    max_per_gap = defaultdict(lambda: 0);
+    t2 = time.time();
+    #print(len(gaps));
+    #max_per_gap = defaultdict(lambda: 0);
     result = 0;
-    for gap in gaps:
-        (temp, shortcut_taken) = num_odd_fills(gap,length);
-        if shortcut_taken or not temp:
-            max_per_gap[(temp,shortcut_taken)]+=1;
-        result += temp;
-    #result = sum( map( num_odd_fills, gaps));
-    print("time = ", (time.time() - t));
-    print("bad gaps", num_double_single);
-    print("no path gaps", num_no_path);
-    print("no multi", num_multi);
-    print("gap result distribution",max_per_gap);
+    #for gap in gaps:
+    #    (temp, shortcut_taken) = num_odd_fills(gap,length);
+    #    if shortcut_taken or not temp:
+    #        max_per_gap[(temp,shortcut_taken)]+=1;
+    #    result += temp;
+    result = sum( map( lambda g:num_odd_fills(g,length), gaps));
+    t3 = time.time();
+    print("time perm= ", (t2 - t), "time odd fills", t3-t2);
+    #print("gap result distribution",max_per_gap);
     return result;
 
 def parse_input():

@@ -6,13 +6,9 @@ def increasing_multiples(num, limit):
 
 def print_multiplication_table(max_input):
     
-    table = [\
-        [x for x in increasing_multiples(num,max_input)]\
-        for num in range(1,max_input+1)];
-    
     print('\n'.join(\
-            (''.join(("{:>4}".format(value) for value in row)))\
-            for row in table));
+            (''.join(("{:>4}".format(value) for value in increasing_multiples(num, max_input))))\
+            for num in range(1,max_input+1)));
 
 if __name__ == '__main__':
     print_multiplication_table(12);

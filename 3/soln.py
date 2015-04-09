@@ -1,12 +1,12 @@
 import sys;
-from math import ceil,sqrt;
+#from math import ceil,sqrt;
 
 def is_prime(num):
     '''can check if a number is prime up to 1000'''
     # all primes than divide numbers less than 1000
     primes = [2,3,5,7,11,13,17,19,23,29,31];
-    sqrt_num = ceil(sqrt(num));
-    for p in (prime for prime in primes if prime <= sqrt_num):
+    #sqrt_num = ceil(sqrt(num));
+    for p in (prime for prime in primes):# if prime <= sqrt_num):
         if num%p == 0:
             return False;
     
